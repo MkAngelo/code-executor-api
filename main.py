@@ -4,7 +4,54 @@ from fastapi import FastAPI
 import subprocess   
 from os import remove
 
+import os
+import sys
+
+from fastapi.logger import logger
+from pydantic import BaseSettings
+from pyngrok import ngrok
+
+from fastapi.middleware.cors import CORSMiddleware
+
+class Settings(BaseSettings):
+    # ... The rest of our FastAPI settings
+
+    BASE_URL = "http://localhost:3400"
+    USE_NGROK = os.environ.get("USE_NGROK", "False") == "True"
+
+settings = Settings()
+
+
 app = FastAPI()
+
+origins = [
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+if settings.USE_NGROK:
+    # pyngrok should only ever be installed or initialized in a dev environment when this flag is set
+
+    # Get the dev server port (defaults to 8000 for Uvicorn, can be overridden with `--port`
+    # when starting the server
+    port = sys.argv[sys.argv.index("--port") + 1] if "--port" in sys.argv else 8000
+
+    # Open a ngrok tunnel to the dev server
+    public_url = ngrok.connect(port).public_url
+    logger.info("ngrok tunnel \"{}\" -> \"http://127.0.0.1:{}\"".format(public_url, port))
+
+    # Update any base URLs or webhooks to use the public ngrok URL
+    settings.BASE_URL = public_url
+    init_webhooks(public_url)
+
+# ... Initialize routers and the rest of our app
 
 @app.post(path="/")
 def runner(source: str, lang: str) -> str:
