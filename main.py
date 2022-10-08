@@ -56,7 +56,7 @@ if settings.USE_NGROK:
 @app.post(path="/")
 def runner(source: str, lang: str) -> str:
     if source and lang:
-
+        #source = source.encode("Latin-1").decode("utf-8")
         # Create a route
         name = "code." + lang
         route = "./temp/"+ name
